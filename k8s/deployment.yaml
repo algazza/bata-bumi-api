@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bata-bumi-deployment
+  namespace: opm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bata-bumi
+  template:
+    metadata:
+      labels:
+        app: bata-bumi
+    spec:
+      containers:
+        - name: bata-bumi
+          image: alghaza/bata-bumi-api:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: DB_HOST
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: DB_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: DB_PASS
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: DB_NAME

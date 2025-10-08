@@ -2,7 +2,8 @@
   "name": "express-ts",
   "scripts": {
     "build": "tsc --build",
-    "dev": "nodemon --ext ts --watch src --exec bunx tsx src/app.ts"
+    "dev": "nodemon --ext ts --watch src --exec bunx tsx src/app.ts",
+    "start": "bun run src/app.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.2.23",
