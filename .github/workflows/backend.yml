@@ -1,7 +1,7 @@
 name: Deeploy Backend Bata Bumi
 
 on:
-  pull_request:
+  push:
     branches: [ "main" ]
 
 jobs:
