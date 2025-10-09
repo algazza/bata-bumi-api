@@ -15,7 +15,7 @@ spec:
     - host: opm.hackathon.sev-2.com
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
