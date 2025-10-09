@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { integer } from 'drizzle-orm/pg-core';
 
 export const UserDTO = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
@@ -33,3 +34,8 @@ export const handymanToCart = z.object({
   ).min(1, "At least one handyman must be provided"),
   image: z.string().min(1, "Image is required"),
 });
+
+export const updateStatusPaymenValidate = z.object({
+  status: z.string().min(3, "Name is required"),
+  order_id: z.number(),
+}).strict();

@@ -38,7 +38,6 @@ import { pgTable, serial, varchar, timestamp, integer, date, boolean } from "dri
     disable_id: integer("disable_id").references(() => disable_date.id, { onDelete: "cascade", onUpdate: "cascade" }),
   });
 
-
   export const payment = pgTable("payment", {
     id: serial("id").primaryKey(),
     status: varchar("status").notNull(),
