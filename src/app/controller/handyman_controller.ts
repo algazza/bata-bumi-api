@@ -1,9 +1,9 @@
 import type { Request, Response } from "express";
 import { db } from "../../config/config";
-import { service, handyman, service_handyman, service_order_handyman, service_order, orders, payment } from "../../db/schema/schema";
+import { service, handyman, service_handyman, service_order_handyman, service_order, orders, payment, job_proggres } from '../../db/schema/schema';
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { successResponse, errorResponse, validationErrorResponse } from "../../helper/reponse";
-import { handymanToCart, updateStatusPaymenValidate } from "../../helper/validation";
+import { successResponse, errorResponse, validationErrorResponse } from '../../helper/reponse';
+import { handymanToCart, jobProggressValidate, updateStatusPaymenValidate } from "../../helper/validation";
 import { randomUUID } from "crypto";
 
 export class HandymanController {
@@ -337,5 +337,56 @@ export class HandymanController {
     }
   }
 
+  async addHandymanJobProggress(req: Request, res:Response){   
+     try {
+        const serviceOrderId = Number(req.params.service_order_id);
+        if (isNaN(serviceOrderId)) return errorResponse(res, 400, "Invalid service order ID");
 
+        const parsed = jobProggressValidate.safeParse(req.body);
+        if (!parsed.success) return validationErrorResponse(res, parsed.error);
+
+        const { description, finish, image_path, handyman_id} = parsed.data
+
+        await db.insert(job_proggres).values({
+          image_path: image_path,
+          description: description,
+          finish: finish,
+          created_at: new Date(),
+          handyman_id: handyman_id,
+          service_order_id: serviceOrderId
+        })
+
+        return successResponse(res, {}, "success add progress")
+      }catch(err){
+        console.log(err)
+        return errorResponse(res, 500, "Internal  error");
+      } 
+  }
+
+  async getDataHandymanJobProggress(req: Request, res:Response){
+    try{
+      const serviceOrderId = Number(req.params.service_order_id);
+      if (isNaN(serviceOrderId))
+        return errorResponse(res, 400, "Invalid service order ID");
+
+      const data = await db
+        .select({
+          id: job_proggres.id,
+          image_path: job_proggres.image_path,
+          description: job_proggres.description,
+          finish: job_proggres.finish,
+          date_time: job_proggres.created_at,
+        })
+        .from(job_proggres)
+        .where(eq(job_proggres.service_order_id, serviceOrderId));
+
+      if (data.length === 0) {
+        return successResponse(res, [], "No progress found for this service order");
+      }
+      
+      return successResponse(res, data, "Job progress fetched successfully");
+    }catch(err){
+      return errorResponse(res, 500, "Internal server error")
+    }
+  }
 }
