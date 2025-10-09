@@ -39,3 +39,19 @@ export const updateStatusPaymenValidate = z.object({
   status: z.string().min(3, "Name is required"),
   order_id: z.number(),
 }).strict();
+
+export const jobProggressValidate = z.object({
+  image_path: z
+    .string()
+    .min(1, "Image path is required")
+    .max(255, "Image path is too long"),
+
+  description: z
+    .string()
+    .min(5, "Description must be at least 5 characters long")
+    .max(500, "Description is too long"),
+
+  finish: z.boolean().optional().default(false),
+
+  handyman_id: z.number().nonnegative("Total price must be 0 or greater"),
+});
