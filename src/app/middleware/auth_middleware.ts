@@ -11,16 +11,16 @@ export default function authMiddleware(
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer")) {
-    return errorResponse(res, 401, "Unauthorized: No token provided");
+     errorResponse(res, 401, "Unauthorized: No token provided");
   }
 
-  const token: string = authHeader.split(" ")[1]!;
+  const token: string = authHeader?.split(" ")[1]!;
 
   try {
     const user = jwt.verify(token, jwtConfig.secret) as any;
     (req as any).user = user; 
     next();
   } catch (err) {
-    return errorResponse(res, 401, "Unauthorized: Invalid or expired token");
+     errorResponse(res, 401, "Unauthorized: Invalid or expired token");
   }
 }

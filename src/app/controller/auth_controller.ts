@@ -11,17 +11,20 @@ export class AuthController {
   async login(req: Request, res: Response) {
     try {
       const parsed = authLogin.safeParse(req.body);
-      if (!parsed.success) return validationErrorResponse(res, parsed.error);
+      if (!parsed.success){ 
+        validationErrorResponse(res, parsed.error)
+        return;
+      }
 
       const { email, password } = parsed.data;
 
       const userResult = await db.select().from(users).where(eq(users.email, email));
       const user = userResult[0];
 
-      if (!user) return errorResponse(res, 404, "User not found");
+      if (!user) errorResponse(res, 404, "User not found");
 
       const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) return errorResponse(res, 401, "Incorrect password");
+      if (!validPassword) errorResponse(res, 401, "Incorrect password");
 
       const token = jwt.sign(
         { id: user.id, name: user.name },
@@ -29,7 +32,7 @@ export class AuthController {
         { expiresIn: "1h" }
       );
 
-      return successResponse(
+      successResponse(
         res,
         {
           id: user.id,
@@ -40,18 +43,21 @@ export class AuthController {
       );
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 
   async register(req: Request, res: Response) {
     try {
       const parsed = authRegister.safeParse(req.body);
-      if (!parsed.success) return validationErrorResponse(res, parsed.error);
+      if (!parsed.success){         
+        validationErrorResponse(res, parsed.error)
+        return;
+      }
 
       const { name, email, phone, password } = parsed.data;
       const existingUser = await db.select().from(users).where(eq(users.email, email));
-      if (existingUser.length > 0) return errorResponse(res, 400, "Email already exists");
+      if (existingUser.length > 0) errorResponse(res, 400, "Email already exists");
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -68,7 +74,7 @@ export class AuthController {
         { expiresIn: "1h" }
       );
 
-      return successResponse(
+      successResponse(
         res,
         {
           id: newUser?.id,
@@ -79,7 +85,7 @@ export class AuthController {
       );
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 
@@ -87,10 +93,10 @@ export class AuthController {
     try {
       const user = (req as any).user;
       console.log(user)
-      return successResponse(res, {}, "Logout successful");
+      successResponse(res, {}, "Logout successful");
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 }

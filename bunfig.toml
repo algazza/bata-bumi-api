@@ -1,0 +1,6 @@
+[target]
+default = "bun"
+
+[build]
+entrypoints = ["src/app.ts"]
+outdir = "dist"
