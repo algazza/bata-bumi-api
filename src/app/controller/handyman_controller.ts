@@ -1,9 +1,9 @@
 import type { Request, Response } from "express";
 import { db } from "../../config/config";
-import { service, handyman, service_handyman, service_order_handyman, service_order, orders, payment, job_proggres } from '../../db/schema/schema';
+import { service, handyman, service_handyman, service_order_handyman, service_order, orders, payment, job_proggres, review, handyman_histories } from '../../db/schema/schema';
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { successResponse, errorResponse, validationErrorResponse } from '../../helper/reponse';
-import { handymanToCart, jobProggressValidate, updateStatusPaymenValidate } from "../../helper/validation";
+import { handymanToCart, jobProggressValidate, reviewHandyman, updateStatusPaymenValidate } from "../../helper/validation";
 import { randomUUID } from "crypto";
 
 export class HandymanController {
@@ -389,4 +389,89 @@ export class HandymanController {
       return errorResponse(res, 500, "Internal server error")
     }
   }
+
+  async   handymanReview(req: Request, res: Response){
+    try{
+      const userId = (req as any).user?.id;
+      if (!userId) return errorResponse(res, 401, "Unauthorized");
+  
+      const serviceOrderId = Number(req.params.service_order_id);
+      if (isNaN(serviceOrderId)) return errorResponse(res, 400, "Invalid service order ID");
+      const handymanId = Number(req.params.handyman_id);
+      if (isNaN(handymanId)) return errorResponse(res, 400, "Invalid handyman ID");
+  
+      const parsed = reviewHandyman.safeParse(req.body);
+      if (!parsed.success) return validationErrorResponse(res, parsed.error);
+  
+      const {rate, description} = parsed.data
+      
+      await db.insert(review).values({
+        rate: rate,
+        description: description,
+        user_id: userId,
+        handyman_id: handymanId,
+        service_order_id: serviceOrderId
+      })
+
+      return successResponse(res, {}, "success add review on handyman")
+    }catch(err){
+      console.log(err)
+      return errorResponse(res, 500, "Internal server error")
+    }
+  }
+
+  async  getHandymanDetail(req: Request, res: Response) {
+  try {
+    const handymanId = Number(req.params.handyman_id);
+    if (isNaN(handymanId)) return errorResponse(res, 400, "Invalid handyman ID");
+
+    const [handymanData] = await db
+      .select()
+      .from(handyman)
+      .where(eq(handyman.id, handymanId));
+
+    if (!handymanData) return errorResponse(res, 404, "Handyman not found");
+
+    const services = await db
+      .select({ name: service.service })
+      .from(service_handyman)
+      .innerJoin(service, eq(service_handyman.service_id, service.id))
+      .where(eq(service_handyman.handyman_id, handymanId));
+
+    const histories = await db
+      .select({ description: handyman_histories.description })
+      .from(handyman_histories)
+      .where(eq(handyman_histories.handyman_id, handymanId));
+
+    const reviews = await db
+      .select({
+        description: review.description,
+        rate: review.rate
+      })
+      .from(review)
+      .where(eq(review.handyman_id, handymanId));
+
+    const avgRate =
+      reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + r.rate, 0) / reviews.length
+        : 0;
+
+    const response = {
+      id: handymanData.id,
+      name: handymanData.name,
+      rate: avgRate,
+      image_path: handymanData.image_path,
+      description: handymanData.description,
+      priority: handymanData.priority,
+      service: services.map(s => s.name),
+      handyman_histories: histories,
+      review: reviews
+    };
+
+    return successResponse(res, response, "Success get handyman detail");
+    } catch (err) {
+      console.error(err);
+      return errorResponse(res, 500, "Internal server error");
+    }
+  }  
 }

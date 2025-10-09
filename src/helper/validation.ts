@@ -55,3 +55,15 @@ export const jobProggressValidate = z.object({
 
   handyman_id: z.number().nonnegative("Total price must be 0 or greater"),
 });
+
+export const reviewHandyman = z.object({
+    rate: z
+    .number("rate must number")
+    .min(1, "minimum rate is 1")
+    .max(5, "maximum rate is 5"),
+  
+    description: z
+    .string()
+    .min(5, "Description must be at least 5 characters long")
+    .max(500, "Description is too long"),
+})
