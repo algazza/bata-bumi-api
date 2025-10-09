@@ -4,6 +4,7 @@ import { integer } from 'drizzle-orm/pg-core';
 export const UserDTO = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
   email: z.string().email("Invalid email format"),
+  phone: z.string().min(6, "Number phone must min 6 character"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 }).strict();
 
