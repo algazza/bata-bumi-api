@@ -20,10 +20,10 @@ export class ServiceController {
         description: s.description,
       }));
 
-      return successResponse(res, { service: result }, "Services fetched successfully");
+      successResponse(res, { service: result }, "Services fetched successfully");
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 }

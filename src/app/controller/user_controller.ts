@@ -15,7 +15,7 @@ export class UserController {
       const userResult = await db.select().from(users).where(eq(users.id, userId));
       const user = userResult[0];
 
-      if (!user) return errorResponse(res, 404, "User not found");
+      if (!user) errorResponse(res, 404, "User not found");
 
       const userAddresses = await db.select().from(address).where(eq(address.id, user.address_id!));
 
@@ -31,10 +31,10 @@ export class UserController {
         })),
       };
 
-      return successResponse(res, result, "User fetched successfully");
+      successResponse(res, result, "User fetched successfully");
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 }

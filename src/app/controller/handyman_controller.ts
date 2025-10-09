@@ -1,20 +1,20 @@
 import type { Request, Response } from "express";
 import { db } from "../../config/config";
-import { service, handyman, service_handyman, service_order_handyman, service_order, orders, payment, job_proggres } from '../../db/schema/schema';
+import { service, handyman, service_handyman, service_order_handyman, service_order, orders, payment, job_proggres, review, handyman_histories } from '../../db/schema/schema';
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { successResponse, errorResponse, validationErrorResponse } from '../../helper/reponse';
-import { handymanToCart, jobProggressValidate, updateStatusPaymenValidate } from "../../helper/validation";
+import { handymanJobHistoriesValidate, handymanToCart, jobProggressValidate, reviewHandyman, updateStatusPaymenValidate } from "../../helper/validation";
 import { randomUUID } from "crypto";
 
 export class HandymanController {
   async getServiceWithHandyman(req: Request, res: Response) {
     try {
       const serviceId = Number(req.params.id);
-      if (isNaN(serviceId)) return errorResponse(res, 400, "Invalid service ID");
+      if (isNaN(serviceId)) errorResponse(res, 400, "Invalid service ID");
 
       const serviceResult = await db.select().from(service).where(eq(service.id, serviceId));
       const s = serviceResult[0];
-      if (!s) return errorResponse(res, 404, "Service not found");
+      if (!s) errorResponse(res, 404, "Service not found");
 
       const handymen = await db
         .select()
@@ -30,7 +30,7 @@ export class HandymanController {
         skill: h.handyman.description,              
       }));
 
-      return successResponse(res, {
+      successResponse(res, {
         price: s.price,
         service: s.service,
         craftman
@@ -38,23 +38,26 @@ export class HandymanController {
 
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 
    async addHandymanToCart(req: Request, res: Response) {
     try {
       const parsed = handymanToCart.safeParse(req.body);
-      if (!parsed.success) return validationErrorResponse(res, parsed.error);
+      if (!parsed.success) {         
+        validationErrorResponse(res, parsed.error)
+        return;
+      }
 
       const { issue_descriiption, address, total_price, start_date, session, handyman, image } = parsed.data;
 
       const serviceId = Number(req.params.id);
-      if (isNaN(serviceId)) return errorResponse(res, 400, "Invalid service ID");
+      if (isNaN(serviceId)) errorResponse(res, 400, "Invalid service ID");
 
       const serviceResult = await db.select().from(service).where(eq(service.id, serviceId));
       const s = serviceResult[0];
-      if (!s) return errorResponse(res, 404, "Service not found");
+      if (!s) errorResponse(res, 404, "Service not found");
 
       const userId = (req as any).user.id;
 
@@ -77,18 +80,18 @@ export class HandymanController {
         );
       }
 
-      return successResponse(res, {}, "Service order created successfully");
+      successResponse(res, {}, "Service order created successfully");
 
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 
   async getCartByUser(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.id;
-      if (!userId) return errorResponse(res, 401, "Unauthorized");
+      if (!userId) errorResponse(res, 401, "Unauthorized");
 
       const orders = await db
         .select({
@@ -100,7 +103,7 @@ export class HandymanController {
         .where(and(eq(service_order.user_id, userId), isNull(service_order.order_id)));
 
       if (orders.length === 0)
-        return successResponse(res, [], "No service orders found");
+        successResponse(res, [], "No service orders found");
 
       const result = [];
 
@@ -149,10 +152,10 @@ export class HandymanController {
         });
       }
 
-      return successResponse(res, result, "Cart fetched successfully");
+      successResponse(res, result, "Cart fetched successfully");
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 
@@ -160,7 +163,7 @@ export class HandymanController {
     try {
       const { service_order_id } = req.body;
       if (!Array.isArray(service_order_id) || service_order_id.length === 0) {
-        return errorResponse(res, 400, "service_order_id must be a non-empty array");
+        errorResponse(res, 400, "service_order_id must be a non-empty array");
       }
 
       const serviceOrders = await db
@@ -172,7 +175,7 @@ export class HandymanController {
         .where(inArray(service_order.id, service_order_id));
 
       if (serviceOrders.length === 0) {
-        return errorResponse(res, 404, "No service orders found");
+        errorResponse(res, 404, "No service orders found");
       }
 
       const totalPrice = serviceOrders.reduce((sum, so) => sum + so.total_price, 0);
@@ -194,10 +197,10 @@ export class HandymanController {
         .set({ order_id: orderId })
         .where(inArray(service_order.id, service_order_id));
 
-      return successResponse(res, { order_id: orderId }, "Order created successfully");
+      successResponse(res, { order_id: orderId }, "Order created successfully");
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 
@@ -206,8 +209,8 @@ export class HandymanController {
     const { status } = req.body;
     const orderId = Number(req.params.order_id);
 
-    if (isNaN(orderId)) return errorResponse(res, 400, "Invalid order ID");
-    if (!status) return errorResponse(res, 400, "Status is required");
+    if (isNaN(orderId)) errorResponse(res, 400, "Invalid order ID");
+    if (!status) errorResponse(res, 400, "Status is required");
 
     if (status === "accepted") {
       const [newPayment] = await db
@@ -223,7 +226,7 @@ export class HandymanController {
         })
         .where(eq(orders.id, orderId));
 
-      return successResponse(res, { payment_id: newPayment.id }, "Order accepted and payment created");
+      successResponse(res, { payment_id: newPayment.id }, "Order accepted and payment created");
     }
 
     await db
@@ -231,17 +234,17 @@ export class HandymanController {
       .set({ status })
       .where(eq(orders.id, orderId));
 
-    return successResponse(res, {}, `Order status updated to ${status}`);
+    successResponse(res, {}, `Order status updated to ${status}`);
   } catch (err) {
     console.error(err);
-    return errorResponse(res, 500, "Internal server error");
+    errorResponse(res, 500, "Internal server error");
   }
   }
 
   async getPaymentDetail(req: Request, res: Response) {
     try {
       const orderId = Number(req.params.order_id);
-      if (isNaN(orderId)) return errorResponse(res, 400, "Invalid order ID");
+      if (isNaN(orderId)) errorResponse(res, 400, "Invalid order ID");
 
       const orderResult = await db
         .select({
@@ -253,7 +256,7 @@ export class HandymanController {
         .where(eq(orders.id, orderId));
 
       const order = orderResult[0];
-      if (!order) return errorResponse(res, 404, "Order not found");
+      if (!order) errorResponse(res, 404, "Order not found");
 
       const serviceOrders = await db
         .select({
@@ -262,7 +265,7 @@ export class HandymanController {
         .from(service_order)
         .where(eq(service_order.order_id, orderId));
 
-      if (serviceOrders.length === 0) return errorResponse(res, 404, "No service orders found for this order");
+      if (serviceOrders.length === 0) errorResponse(res, 404, "No service orders found for this order");
 
       const serviceDetails = [];
       for (const so of serviceOrders) {
@@ -299,7 +302,7 @@ export class HandymanController {
         });
       }
 
-      return successResponse(res, {
+      successResponse(res, {
         order_id: order.id,
         service_order: serviceDetails,
         total_price: order.total_price,
@@ -307,19 +310,22 @@ export class HandymanController {
       }, "Order detail fetched successfully");
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 
   async updateStatusPayment(req: Request, res: Response) {
     try {
       const parsed = updateStatusPaymenValidate.safeParse(req.body);
-      if (!parsed.success) return validationErrorResponse(res, parsed.error);
+      if (!parsed.success) {         
+        validationErrorResponse(res, parsed.error)
+        return;
+      }
 
       const { status, order_id } = parsed.data;
 
       const orderIdNum = Number(order_id);
-      if (isNaN(orderIdNum)) return errorResponse(res, 400, "Invalid order_id");
+      if (isNaN(orderIdNum)) errorResponse(res, 400, "Invalid order_id");
 
       const result = await db
         .update(payment)
@@ -328,22 +334,25 @@ export class HandymanController {
         .returning({ id: payment.id, status: payment.status });
 
       if (result.length === 0)
-        return errorResponse(res, 404, "Order not found");
+        errorResponse(res, 404, "Order not found");
 
-      return successResponse(res, result[0], "Order status updated successfully");
+      successResponse(res, result[0], "Order status updated successfully");
     } catch (err) {
       console.error(err);
-      return errorResponse(res, 500, "Internal server error");
+      errorResponse(res, 500, "Internal server error");
     }
   }
 
   async addHandymanJobProggress(req: Request, res:Response){   
      try {
         const serviceOrderId = Number(req.params.service_order_id);
-        if (isNaN(serviceOrderId)) return errorResponse(res, 400, "Invalid service order ID");
+        if (isNaN(serviceOrderId)) errorResponse(res, 400, "Invalid service order ID");
 
         const parsed = jobProggressValidate.safeParse(req.body);
-        if (!parsed.success) return validationErrorResponse(res, parsed.error);
+        if (!parsed.success){         
+            validationErrorResponse(res, parsed.error)
+            return;
+          }
 
         const { description, finish, image_path, handyman_id} = parsed.data
 
@@ -356,10 +365,10 @@ export class HandymanController {
           service_order_id: serviceOrderId
         })
 
-        return successResponse(res, {}, "success add progress")
+        successResponse(res, {}, "success add progress")
       }catch(err){
         console.log(err)
-        return errorResponse(res, 500, "Internal  error");
+        errorResponse(res, 500, "Internal  error");
       } 
   }
 
@@ -367,7 +376,7 @@ export class HandymanController {
     try{
       const serviceOrderId = Number(req.params.service_order_id);
       if (isNaN(serviceOrderId))
-        return errorResponse(res, 400, "Invalid service order ID");
+        errorResponse(res, 400, "Invalid service order ID");
 
       const data = await db
         .select({
@@ -381,12 +390,125 @@ export class HandymanController {
         .where(eq(job_proggres.service_order_id, serviceOrderId));
 
       if (data.length === 0) {
-        return successResponse(res, [], "No progress found for this service order");
+        successResponse(res, [], "No progress found for this service order");
       }
       
-      return successResponse(res, data, "Job progress fetched successfully");
+      successResponse(res, data, "Job progress fetched successfully");
     }catch(err){
-      return errorResponse(res, 500, "Internal server error")
+      errorResponse(res, 500, "Internal server error")
     }
+  }
+
+  async   handymanReview(req: Request, res: Response){
+    try{
+      const userId = (req as any).user?.id;
+      if (!userId) errorResponse(res, 401, "Unauthorized");
+  
+      const serviceOrderId = Number(req.params.service_order_id);
+      if (isNaN(serviceOrderId)) errorResponse(res, 400, "Invalid service order ID");
+      const handymanId = Number(req.params.handyman_id);
+      if (isNaN(handymanId)) errorResponse(res, 400, "Invalid handyman ID");
+  
+      const parsed = reviewHandyman.safeParse(req.body);
+      if (!parsed.success) {         
+        validationErrorResponse(res, parsed.error)
+        return;
+      }
+  
+      const {rate, description} = parsed.data
+      
+      await db.insert(review).values({
+        rate: rate,
+        description: description,
+        user_id: userId,
+        handyman_id: handymanId,
+        service_order_id: serviceOrderId
+      })
+
+      successResponse(res, {}, "success add review on handyman")
+    }catch(err){
+      console.log(err)
+      errorResponse(res, 500, "Internal server error")
+    }
+  }
+
+  async  getHandymanDetail(req: Request, res: Response) {
+  try {
+    const handymanId = Number(req.params.handyman_id);
+    if (isNaN(handymanId)) errorResponse(res, 400, "Invalid handyman ID");
+
+    const [handymanData] = await db
+      .select()
+      .from(handyman)
+      .where(eq(handyman.id, handymanId));
+
+    if (!handymanData) errorResponse(res, 404, "Handyman not found");
+
+    const services = await db
+      .select({ name: service.service })
+      .from(service_handyman)
+      .innerJoin(service, eq(service_handyman.service_id, service.id))
+      .where(eq(service_handyman.handyman_id, handymanId));
+
+    const histories = await db
+      .select({ description: handyman_histories.description })
+      .from(handyman_histories)
+      .where(eq(handyman_histories.handyman_id, handymanId));
+
+    const reviews = await db
+      .select({
+        description: review.description,
+        rate: review.rate
+      })
+      .from(review)
+      .where(eq(review.handyman_id, handymanId));
+
+    const avgRate =
+      reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + r.rate, 0) / reviews.length
+        : 0;
+
+    const response = {
+      id: handymanData.id,
+      name: handymanData.name,
+      rate: avgRate,
+      image_path: handymanData.image_path,
+      description: handymanData.description,
+      priority: handymanData.priority,
+      service: services.map(s => s.name),
+      handyman_histories: histories,
+      review: reviews
+    };
+
+    successResponse(res, response, "Success get handyman detail");
+    } catch (err) {
+      console.error(err);
+      errorResponse(res, 500, "Internal server error");
+    }
+  }  
+
+  async handymanJobHistories(req: Request, res:Response){
+    try{
+      const handymanId = Number(req.params.handyman_id);
+      if (isNaN(handymanId)) errorResponse(res, 400, "Invalid handyman ID"); 
+  
+      const parsed = handymanJobHistoriesValidate.safeParse(req.body);
+      if (!parsed.success) {         
+        validationErrorResponse(res, parsed.error)
+        return;
+      }
+      const {description} = parsed.data
+  
+      await db.insert(handyman_histories).values({
+        description: description,
+        handyman_id: handymanId
+      })
+  
+      successResponse(res, {}, "Success add job histories detail");
+    }catch(err){
+      console.log(err)
+      errorResponse(res, 500, "Internal server error");
+    }
+
   }
 }
