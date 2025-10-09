@@ -6,6 +6,7 @@ const router = express.Router();
 const userController = new UserController();
 
 router.get("/", authMiddleware, (req, res) => userController.getMe(req, res));
+router.patch("/", authMiddleware, (req, res) => userController.updateUser(req, res));
 
 
 

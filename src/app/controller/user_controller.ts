@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
 import { db } from "../../config/config";
-import { address, users } from "../../db/schema/schema";
+import { address, users } from '../../db/schema/schema';
 import { eq } from "drizzle-orm";
 import { UserDTO } from "../../helper/validation";
 import { errorResponse, successResponse, validationErrorResponse } from "../../helper/reponse";
-import { pusher } from "../../config/pusher";
+import bcrypt from "bcryptjs";
 
 export class UserController {
 
@@ -37,4 +37,33 @@ export class UserController {
       errorResponse(res, 500, "Internal server error");
     }
   }
+
+
+  async updateUser(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const parsed = UserDTO.safeParse(req.body);
+      if (!parsed.success) {
+        validationErrorResponse(res, parsed.error);
+        return;
+      }
+
+      const { name, email, password, phone } = parsed.data;
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      await db
+        .update(users)         
+        .set({ name: name,
+               email: email,
+               password: hashedPassword,
+               phone: phone }) 
+        .where(eq(users.id, userId))     
+
+      successResponse(res, {}, "User updated user data successfully");
+    } catch (err) {
+      console.error(err);
+      errorResponse(res, 500, "Failed to update user");
+    }
+  }
+
 }
