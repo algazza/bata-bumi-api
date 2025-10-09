@@ -3,7 +3,7 @@ import { db } from "../../config/config";
 import { service, handyman, service_handyman, service_order_handyman, service_order, orders, payment, job_proggres, review, handyman_histories } from '../../db/schema/schema';
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { successResponse, errorResponse, validationErrorResponse } from '../../helper/reponse';
-import { handymanToCart, jobProggressValidate, reviewHandyman, updateStatusPaymenValidate } from "../../helper/validation";
+import { handymanJobHistoriesValidate, handymanToCart, jobProggressValidate, reviewHandyman, updateStatusPaymenValidate } from "../../helper/validation";
 import { randomUUID } from "crypto";
 
 export class HandymanController {
@@ -474,4 +474,26 @@ export class HandymanController {
       return errorResponse(res, 500, "Internal server error");
     }
   }  
+
+  async handymanJobHistories(req: Request, res:Response){
+    try{
+      const handymanId = Number(req.params.handyman_id);
+      if (isNaN(handymanId)) return errorResponse(res, 400, "Invalid handyman ID"); 
+  
+      const parsed = handymanJobHistoriesValidate.safeParse(req.body);
+      if (!parsed.success) return validationErrorResponse(res, parsed.error);
+      const {description} = parsed.data
+  
+      await db.insert(handyman_histories).values({
+        description: description,
+        handyman_id: handymanId
+      })
+  
+      return successResponse(res, {}, "Success add job histories detail");
+    }catch(err){
+      console.log(err)
+      return errorResponse(res, 500, "Internal server error");
+    }
+
+  }
 }

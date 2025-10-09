@@ -67,3 +67,10 @@ export const reviewHandyman = z.object({
     .min(5, "Description must be at least 5 characters long")
     .max(500, "Description is too long"),
 })
+
+export const handymanJobHistoriesValidate = z.object({
+    description: z
+    .string()
+    .min(5, "Description must be at least 5 characters long")
+    .max(500, "Description is too long"),
+})

@@ -6,6 +6,7 @@ import { reviewHandyman } from '../helper/validation';
 const router = express.Router();
 const serviceController = new HandymanController();
 
+router.post("/histories/:handyman_id", (req, res) => serviceController.handymanJobHistories(req, res));
 router.get("/profile/:handyman_id", authMiddleware, (req, res) => serviceController.getHandymanDetail (req, res));
 router.post("/review/:handyman_id/:service_order_id",authMiddleware, (req, res) => serviceController.handymanReview(req, res));
 
