@@ -11,10 +11,6 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - PORT=${PORT}
-      - PUSHER_APP_ID=${PUSHER_APP_ID}
-      - PUSHER_KEY=${PUSHER_KEY}
-      - PUSHER_SECRET=${PUSHER_SECRET}
-      - PUSHER_CLUSTER=${PUSHER_CLUSTER}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     env_file:
       - .env
